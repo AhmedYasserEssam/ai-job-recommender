@@ -33,6 +33,9 @@ Job_Categories = []
 Skills = []
 Job_Requirements = []
 
+jobs_df = None
+
+
 
 def scrape_job_listings():
     """Scrape basic job info from search results pages"""
@@ -282,15 +285,7 @@ def save_to_csv():
     return df
 
 
-if __name__ == "__main__":
-    # Get job names from user
-    print("=" * 50)
-    print("       Wuzzuf Job Scraper")
-    print("=" * 50)
-    print("\nEnter job titles to search for.")
-    print("You can enter multiple jobs separated by commas.")
-    print("Example: Data Scientist, Data Analyst, Data Engineer\n")
-    
+def initializeJobData():
     user_input = input("Enter job title(s): ").strip()
     
     if not user_input:
@@ -300,9 +295,6 @@ if __name__ == "__main__":
     # Parse user input - split by comma and clean up
     job_names = [job.strip() for job in user_input.split(",") if job.strip()]
     
-    print(f"\nSearching for: {job_names}")
-    print("-" * 50)
-    
     # Step 1: Scrape job listings from search pages
     scrape_job_listings()
     
@@ -310,6 +302,7 @@ if __name__ == "__main__":
     scrape_job_details()
     
     # Step 3: Save to CSV
-    df = save_to_csv()
-    print("\n--- Sample of scraped data ---")
-    print(df.head())
+    jobs_df = save_to_csv()
+
+def getJobsDF():
+    return jobs_df
