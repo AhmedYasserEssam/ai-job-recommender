@@ -1,110 +1,101 @@
-import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import urllib.parse
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 import time
 
-job_names = []  # Will be set by user input
 
-# create needed lists
-# these ones for the data within the jobs search page
-job_title = []
-company_name = []
-country = []
-city = []
-area = []
-links = []
-date = []
-job_type = []
-work_place = []
-job_searched = []
-
-# these ones for each job's link (detailed info)
-Salary = []
-Experience_Needed = []
-Career_Level = []
-Education_Level = []
-Job_Categories = []
-Skills = []
-Job_Requirements = []
-
-jobs_df = None
-
-
-
-def scrape_job_listings():
-    """Scrape basic job info from search results pages"""
-    for job_name in job_names:
-        print(f"\n--- Scraping listings for: {job_name} ---")
-        for page in range(0, 1):
-            parsed_job = urllib.parse.quote(job_name)
-            url = f'https://wuzzuf.net/search/jobs/?a=navbg%7Cspbg&filters%5Bcountry%5D%5B0%5D=Egypt&q={parsed_job}&start={page}'
-            
-            try:
-                response = requests.get(url)
-                soup = BeautifulSoup(response.content, 'html.parser')
-                job_cards = soup.find_all('div', class_='css-ghe2tq e1v1l3u10')
-                
-                if not job_cards:
-                    print(f"No more jobs found on page {page}")
-                    break
-                
-                for card in job_cards:
-                    # Job Title
-                    title_elem = card.find("h2", class_="css-193uk2c")
-                    job_title.append(title_elem.text.strip() if title_elem else "N/A")
-                    
-                    # Company Name
-                    company_elem = card.find("a", class_="css-ipsyv7")
-                    company_name.append(company_elem.text.strip() if company_elem else "N/A")
-                    
-                    # Location
-                    location_elem = card.find("span", class_="css-16x61xq")
-                    if location_elem:
-                        loc_parts = location_elem.text.split(',')
-                        country.append(loc_parts[-1].strip() if len(loc_parts) > 0 else "N/A")
-                        city.append(loc_parts[0].strip() if len(loc_parts) > 0 else "N/A")
-                        area.append(loc_parts[1].strip() if len(loc_parts) > 1 else "N/A")
-                    else:
-                        country.append("N/A")
-                        city.append("N/A")
-                        area.append("N/A")
-                    
-                    # Publish Date
-                    publish_elem = card.select_one("div[class*='css-eg55jf']")
-                    date.append(publish_elem.get_text(strip=True) if publish_elem else "N/A")
-                    
-                    # Job Link
-                    link_elem = card.find("a", class_="css-o171kl")
-                    links.append(link_elem.get('href') if link_elem else "N/A")
-                    
-                    # Job Type
-                    type_elem = card.find("span", class_="css-uc9rga eoyjyou0")
-                    job_type.append(type_elem.text.strip() if type_elem else "N/A")
-                    
-                    # Work Place
-                    workplace_elem = card.select_one("span[class*='css-uofntu eoyjyou0']")
-                    work_place.append(workplace_elem.get_text(strip=True) if workplace_elem else "N/A")
-                    
-                    # Track which job search this came from
-                    job_searched.append(job_name)
-                
-                print(f"Page {page + 1}: Found {len(job_cards)} jobs")
-                
-            except Exception as e:
-                print(f"Error on page {page}: {e}")
-                continue
+def scrape_job_listings(job_name: str) -> pd.DataFrame:
+    """
+    Scrape basic job info from search results pages.
     
-    print(f"\nTotal jobs found: {len(job_title)}")
+    Args:
+        job_name: The job title to search for
+        
+    Returns:
+        DataFrame containing scraped job listings
+    """
+    rows = []
+    
+    print(f"\n--- Scraping listings for: {job_name} ---")
+    for page in range(0, 1):
+        parsed_job = urllib.parse.quote(job_name)
+        url = f'https://wuzzuf.net/search/jobs/?a=navbg%7Cspbg&filters%5Bcountry%5D%5B0%5D=Egypt&q={parsed_job}&start={page}'
+        
+        try:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            job_cards = soup.find_all('div', class_='css-ghe2tq e1v1l3u10')
+            
+            if not job_cards:
+                print(f"No more jobs found on page {page}")
+                break
+            
+            for card in job_cards:
+                row = {'Job Search': job_name}
+                
+                # Job Title
+                title_elem = card.find("h2", class_="css-193uk2c")
+                row['Job Title'] = title_elem.text.strip() if title_elem else "N/A"
+                
+                # Company Name
+                company_elem = card.find("a", class_="css-ipsyv7")
+                row['Company'] = company_elem.text.strip() if company_elem else "N/A"
+                
+                # Location
+                location_elem = card.find("span", class_="css-16x61xq")
+                if location_elem:
+                    loc_parts = location_elem.text.split(',')
+                    row['Country'] = loc_parts[-1].strip() if len(loc_parts) > 0 else "N/A"
+                    row['City'] = loc_parts[0].strip() if len(loc_parts) > 0 else "N/A"
+                    row['Area'] = loc_parts[1].strip() if len(loc_parts) > 1 else "N/A"
+                else:
+                    row['Country'] = "N/A"
+                    row['City'] = "N/A"
+                    row['Area'] = "N/A"
+                
+                # Publish Date
+                publish_elem = card.select_one("div[class*='css-eg55jf']")
+                row['Publish Date'] = publish_elem.get_text(strip=True) if publish_elem else "N/A"
+                
+                # Job Link
+                link_elem = card.find("a", class_="css-o171kl")
+                row['Job Link'] = link_elem.get('href') if link_elem else "N/A"
+                
+                # Job Type
+                type_elem = card.find("span", class_="css-uc9rga eoyjyou0")
+                row['Job Type'] = type_elem.text.strip() if type_elem else "N/A"
+                
+                # Work Place
+                workplace_elem = card.select_one("span[class*='css-uofntu eoyjyou0']")
+                row['Work Place'] = workplace_elem.get_text(strip=True) if workplace_elem else "N/A"
+                
+                rows.append(row)
+            
+            print(f"Page {page + 1}: Found {len(job_cards)} jobs")
+            
+        except Exception as e:
+            print(f"Error on page {page}: {e}")
+            continue
+    
+    df = pd.DataFrame(rows)
+    print(f"\nTotal jobs found: {len(df)}")
+    return df
 
 
-def scrape_job_details():
-    """Scrape detailed info from each job's individual page using Selenium with JavaScript"""
+def scrape_job_details(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Scrape detailed info from each job's individual page using Selenium.
+    Adds detail columns directly to the DataFrame.
+    
+    Args:
+        df: DataFrame with job listings (must have 'Job Link' and 'Job Title' columns)
+        
+    Returns:
+        DataFrame with added detail columns
+    """
     print("\n--- Scraping detailed job information ---")
     
     # JavaScript to extract all job details reliably
@@ -209,20 +200,29 @@ def scrape_job_details():
     return result;
     """
     
-    # Initialize Chrome driver
-    driver = webdriver.Chrome()
+    # Initialize new columns with N/A
+    df['Salary'] = "N/A"
+    df['Experience Needed'] = "N/A"
+    df['Career Level'] = "N/A"
+    df['Education Level'] = "N/A"
+    df['Job Categories'] = "N/A"
+    df['Skills'] = "N/A"
+    df['Job Requirements'] = "N/A"
+    
+    # Initialize Chrome driver in headless mode (no browser window)
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    
+    driver = webdriver.Chrome(options=chrome_options)
     driver.set_page_load_timeout(30)
     
-    for i, link in enumerate(links):
+    for i, row in df.iterrows():
+        link = row['Job Link']
+        
         if link == "N/A":
-            # Append N/A for all detail fields
-            Salary.append("N/A")
-            Experience_Needed.append("N/A")
-            Career_Level.append("N/A")
-            Education_Level.append("N/A")
-            Job_Categories.append("N/A")
-            Skills.append("N/A")
-            Job_Requirements.append("N/A")
             continue
             
         try:
@@ -232,77 +232,92 @@ def scrape_job_details():
             # Execute JavaScript to extract all data
             data = driver.execute_script(extract_script)
             
-            Experience_Needed.append(data.get('experience', 'N/A'))
-            Career_Level.append(data.get('careerLevel', 'N/A'))
-            Education_Level.append(data.get('education', 'N/A'))
-            Salary.append(data.get('salary', 'N/A'))
-            Job_Categories.append(data.get('categories', 'N/A'))
-            Skills.append(data.get('skills', 'N/A'))
-            Job_Requirements.append(data.get('requirements', 'N/A'))
+            # Update DataFrame directly
+            df.at[i, 'Experience Needed'] = data.get('experience', 'N/A')
+            df.at[i, 'Career Level'] = data.get('careerLevel', 'N/A')
+            df.at[i, 'Education Level'] = data.get('education', 'N/A')
+            df.at[i, 'Salary'] = data.get('salary', 'N/A')
+            df.at[i, 'Job Categories'] = data.get('categories', 'N/A')
+            df.at[i, 'Skills'] = data.get('skills', 'N/A')
+            df.at[i, 'Job Requirements'] = data.get('requirements', 'N/A')
             
-            print(f"Scraped job {i + 1}/{len(links)}: {job_title[i][:30]}...")
+            print(f"Scraped job {i + 1}/{len(df)}: {row['Job Title'][:30]}...")
             
         except Exception as e:
             print(f"Job {i + 1} page error: {e}")
-            Experience_Needed.append("N/A")
-            Career_Level.append("N/A")
-            Education_Level.append("N/A")
-            Salary.append("N/A")
-            Job_Categories.append("N/A")
-            Skills.append("N/A")
-            Job_Requirements.append("N/A")
     
     driver.quit()
     print("Detailed scraping complete!")
-
-
-def save_to_csv():
-    """Save all scraped data to CSV"""
-    df = pd.DataFrame({
-        'Job Search': job_searched,
-        'Job Title': job_title,
-        'Company': company_name,
-        'Country': country,
-        'City': city,
-        'Area': area,
-        'Publish Date': date,
-        'Job Link': links,
-        'Job Type': job_type,
-        'Work Place': work_place,
-        'Salary': Salary,
-        'Experience Needed': Experience_Needed,
-        'Career Level': Career_Level,
-        'Education Level': Education_Level,
-        'Job Categories': Job_Categories,
-        'Skills': Skills,
-        'Job Requirements': Job_Requirements
-    })
-    
-    file_path = "wuzzuf_jobs_data.csv"
-    df.to_csv(file_path, index=False, encoding='utf-8-sig')
-    print(f"\nData saved to {file_path}")
-    print(f"Total records: {len(df)}")
     return df
 
 
-def initializeJobData():
-    user_input = input("Enter job title(s): ").strip()
+def save_to_csv(df: pd.DataFrame, file_path: str = "wuzzuf_jobs_data.csv") -> str:
+    """
+    Save DataFrame to CSV file.
+    
+    Args:
+        df: The DataFrame to save
+        file_path: Output file path (default: wuzzuf_jobs_data.csv)
+        
+    Returns:
+        The file path where data was saved
+    """
+    df.to_csv(file_path, index=False, encoding='utf-8-sig')
+    print(f"\nData saved to {file_path}")
+    print(f"Total records: {len(df)}")
+    return file_path
+
+
+def scrape_jobs(job_name: str, save_csv: bool = True) -> pd.DataFrame:
+    """
+    Main function to scrape jobs for a given job title.
+    
+    Args:
+        job_name: The job title to search for
+        save_csv: Whether to save results to CSV (default: True)
+        
+    Returns:
+        pandas DataFrame with all scraped job data
+    """
+    if not job_name or not job_name.strip():
+        raise ValueError("Job name cannot be empty")
+    
+    job_name = job_name.strip()
+    
+    # Step 1: Scrape job listings from search pages (returns DataFrame)
+    df = scrape_job_listings(job_name)
+    
+    # Step 2: Scrape detailed info and add to DataFrame
+    df = scrape_job_details(df)
+    
+    # Step 3: Optionally save to CSV
+    if save_csv:
+        save_to_csv(df)
+    
+    return df
+
+
+def getJobsDF(job_name: str) -> pd.DataFrame:
+    """
+    Get jobs DataFrame for a given job title.
+    Alias for scrape_jobs() for backward compatibility.
+    
+    Args:
+        job_name: The job title to search for
+        
+    Returns:
+        pandas DataFrame with all scraped job data
+    """
+    return scrape_jobs(job_name, save_csv=False)
+
+
+# Allow running as standalone script
+if __name__ == "__main__":
+    user_input = input("Enter job title: ").strip()
     
     if not user_input:
-        print("No job titles entered. Exiting.")
+        print("No job title entered. Exiting.")
         exit()
     
-    # Parse user input - split by comma and clean up
-    job_names = [job.strip() for job in user_input.split(",") if job.strip()]
-    
-    # Step 1: Scrape job listings from search pages
-    scrape_job_listings()
-    
-    # Step 2: Scrape detailed info from each job page
-    scrape_job_details()
-    
-    # Step 3: Save to CSV
-    jobs_df = save_to_csv()
-
-def getJobsDF():
-    return jobs_df
+    df = scrape_jobs(user_input)
+    print(df.head())
