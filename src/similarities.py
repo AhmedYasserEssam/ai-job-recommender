@@ -33,13 +33,14 @@ def semantic_similarity(text1: str, text2: str) -> float:
     return float(similarity.item())
 
 def skill_similarity(cv_skills: List[str], job_skills: List[str]) -> float:
-    if not job_skills:
+    if not job_skills or not cv_skills:
         return 0.0
-    cv_set = set(skill.lower().strip() for skill in cv_skills)
-    job_set = set(skill.lower().strip() for skill in job_skills)
+    cv_embeddings = model.encode(cv_skills, convert_to_tensor=True, show_progress_bar=False)
+    job_embeddings = model.encode(job_skills, convert_to_tensor=True, show_progress_bar=False)
+    similarity_matrix = util.cos_sim(job_embeddings, cv_embeddings)
+    best_matches = [float(scores.max()) for scores in similarity_matrix]
+    return sum(best_matches) / len(job_skills)
 
-    return len(cv_set & job_set) / len(job_set)
-     
 def experience_similarity(cv_years: float, jd_years: int) -> float:
     if jd_years == 0:
         return 1.0
