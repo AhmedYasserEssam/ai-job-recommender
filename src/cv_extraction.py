@@ -169,6 +169,7 @@ def parse_skills_from_section(skills_text: str) -> List[str]:
     if not skills_text:
         return []
     
+    try:
         skills = []
         
         delimiters = r'[,;|•·▪▸►➤✓✔★●○◦\n\t]|\s{2,}|(?<=[a-z])(?=[A-Z])'
@@ -242,46 +243,46 @@ def extract_years_of_experience(summary_text: str, experience_text: str) -> floa
         try:
             text_lower = experience_text.lower()
         
-        date_pattern = r'(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?\.?\s*(\d{4})\s*[-–—to]+\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?\.?\s*(\d{4})|present|current|now)'
-        
-        date_matches = re.findall(date_pattern, text_lower, re.IGNORECASE)
-        
-        if not date_matches:
-            return None
-        
-        current_year = datetime.now().year
-        job_periods = []
-        
-        for match in date_matches:
-            start_year = int(match[0])
-            end_part = match[1].strip()
+            date_pattern = r'(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?\.?\s*(\d{4})\s*[-–—to]+\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?\.?\s*(\d{4})|present|current|now)'
             
-            is_current = any(word in end_part.lower() for word in ['present', 'current', 'now'])
+            date_matches = re.findall(date_pattern, text_lower, re.IGNORECASE)
             
-            if is_current:
-                end_year = current_year
-            else:
-                year_match = re.search(r'(\d{4})', end_part)
-                if year_match:
-                    end_year = int(year_match.group(1))
+            if not date_matches:
+                return None
+            
+            current_year = datetime.now().year
+            job_periods = []
+            
+            for match in date_matches:
+                start_year = int(match[0])
+                end_part = match[1].strip()
+                
+                is_current = any(word in end_part.lower() for word in ['present', 'current', 'now'])
+                
+                if is_current:
+                    end_year = current_year
                 else:
-                    continue
+                    year_match = re.search(r'(\d{4})', end_part)
+                    if year_match:
+                        end_year = int(year_match.group(1))
+                    else:
+                        continue
+                
+                if 1950 < start_year <= current_year and 1950 < end_year <= current_year and start_year <= end_year:
+                    job_periods.append((start_year, end_year))
             
-            if 1950 < start_year <= current_year and 1950 < end_year <= current_year and start_year <= end_year:
-                job_periods.append((start_year, end_year))
-        
-        if not job_periods:
-            return None
-        
-        job_periods.sort(key=lambda x: x[0])
-        merged_periods = []
-        
-        for start, end in job_periods:
-            if merged_periods and start <= merged_periods[-1][1]:
-                merged_periods[-1] = (merged_periods[-1][0], max(merged_periods[-1][1], end))
-            else:
-                merged_periods.append((start, end))
-        
+            if not job_periods:
+                return None
+            
+            job_periods.sort(key=lambda x: x[0])
+            merged_periods = []
+            
+            for start, end in job_periods:
+                if merged_periods and start <= merged_periods[-1][1]:
+                    merged_periods[-1] = (merged_periods[-1][0], max(merged_periods[-1][1], end))
+                else:
+                    merged_periods.append((start, end))
+            
             total_years = sum(end - start for start, end in merged_periods)
             
             return total_years if total_years > 0 else None

@@ -1,14 +1,17 @@
 from sentence_transformers import SentenceTransformer, util
-from typing import Any
+from typing import List
+
+from cv_extraction import CVData
+from job import Job
 
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
-def calculate_similarity(cv_data: Any, job: Any) -> float:
-    semantic_score = semantic_similarity(cv_data.raw_text, job.Job_Requirements)
-    skill_score = skill_similarity(cv_data.skills, job.Skills)
-    exp_score = experience_similarity(cv_data.total_experience_years, job.Experience_Needed)
+def calculate_similarity(cv_data: CVData, job: Job) -> float:
+    semantic_score = semantic_similarity(cv_data.raw_text, job.requirements)
+    skill_score = skill_similarity(cv_data.skills, job.skills)
+    exp_score = experience_similarity(cv_data.experience_years, job.experience_needed)
     
     final_score = (
         0.50 * semantic_score +
