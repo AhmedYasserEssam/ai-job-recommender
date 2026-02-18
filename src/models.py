@@ -1,6 +1,13 @@
+import re
 from dataclasses import dataclass, field
 from typing import List, Union
-import re
+
+
+@dataclass
+class CVData:
+    raw_text: str
+    skills: List[str]
+    experience_years: float
 
 
 @dataclass
@@ -30,30 +37,23 @@ class Job:
             return self.link == other.link
         return False
 
-    
+
 def parse_experience(exp_str: str) -> int:
     if not exp_str or exp_str == "N/A":
         return 0
-    
     match = re.search(r'(\d+)', exp_str)
-    if match:
-        return int(match.group(1))
-    return 0
+    return int(match.group(1)) if match else 0
 
 
 def parse_salary(salary_str: str) -> Union[int, str]:
     if not salary_str or salary_str == "N/A":
         return "N/A"
-    
     cleaned = salary_str.replace(",", "").replace(" ", "")
     match = re.search(r'(\d+)', cleaned)
-    if match:
-        return int(match.group(1))
-    return salary_str
+    return int(match.group(1)) if match else salary_str
 
 
 def parse_list(value_str: str, delimiter: str = " | ") -> List[str]:
     if not value_str or value_str == "N/A":
         return []
-    
     return [item.strip() for item in value_str.split(delimiter) if item.strip()]
